@@ -65,10 +65,17 @@ type SavedSearchData = {
     data?: Prisma.tpns_olx_offerUpdateManyMutationInput[];
     error?: any;
   };
+  error?: any;
 };
 
 async function saveSearchData(data: OlxResponseData): Promise<SavedSearchData> {
   const { db } = PrismaDb;
+
+  try {
+    db.$connect();
+  } catch (e) {
+    return { create: {}, update: {}, error: e };
+  }
 
   const offers = await db.tpns_olx_offer.findMany({
     where: { id: { in: data.data.map(mapOlxResponseDataToId) } },
