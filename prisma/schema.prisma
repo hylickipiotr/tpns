@@ -1,0 +1,29 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model tpns_olx_offer {
+  id String @id
+  url String
+  title String
+  last_refresh_time DateTime
+  created_time DateTime
+  valid_to_time DateTime
+  pushup_time DateTime?
+  location_region_name String
+  location_city_name String
+  param_price Int?
+  param_enginesize Int?
+  param_year Int?
+  param_milage Int?
+  param_country_origin String?
+  updated_at DateTime @updatedAt()
+}

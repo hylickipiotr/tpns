@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { SENDINBLUE_API_URL } from "../constants";
 import { Product, ProductStatus } from "../types/product";
 
@@ -73,5 +74,28 @@ export function createProductStatusEmailData(product: Product): EmailData {
     ],
     subject: subjectStatusMap[product.status] || "Zmiana status produktu",
     htmlContent: `<html><head></head><body><a href="${product.url}">${product.url}</a></body></html>`,
+  };
+}
+
+export function createOlxNewOffersEmailData(
+  offers: Prisma.tpns_olx_offerCreateInput[]
+): EmailData {
+  const email = process.env.EMAIL;
+  const offersElement = offers
+    .map(({ url, title }) => `<li><a href="${url}">${title}</a></li>`)
+    .join("");
+
+  return {
+    sender: {
+      name: "TPNC",
+      email,
+    },
+    to: [
+      {
+        email,
+      },
+    ],
+    subject: "Pojawily się nowe oferty",
+    htmlContent: `<html><head></head><body><ul>${offersElement}</ul></body></html>`,
   };
 }
