@@ -104,7 +104,7 @@ async function saveSearchData(data: OlxResponseData): Promise<SavedSearchData> {
   if (input.update.size) {
     const updateData = Array.from(input.update.values());
     result.update.data = updateData;
-    db.$transaction(
+    await db.$transaction(
       updateData.map((item) =>
         db.tpns_olx_offer.update({
           data: item,
@@ -117,7 +117,7 @@ async function saveSearchData(data: OlxResponseData): Promise<SavedSearchData> {
   }
 
   const createData = Array.from(input.create.values());
-  db.tpns_olx_offer.createMany({
+  await db.tpns_olx_offer.createMany({
     data: createData,
   });
   result.create.data = createData;
