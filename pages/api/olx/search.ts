@@ -4,9 +4,7 @@ import PrismaDb from "../../../lib/prisma/client";
 import { OlxResponseData, Value } from "../../../types/olx";
 import {
   createOlxNewOffersEmailData,
-  createProductStatusEmailData,
   sendEmail,
-  SendEmailError,
   SendEmailResponse,
 } from "../../../utils/email";
 import { joinUrlWithRoute } from "../../../utils/url";
