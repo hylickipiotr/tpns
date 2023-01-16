@@ -110,17 +110,17 @@ async function saveSearchData(data: OlxResponseData): Promise<SavedSearchData> {
 
   if (input.update.size) {
     const updateData = Array.from(input.update.values());
-    result.update.data = [];
-    for (let itemIndex = 0; itemIndex < input.update.size; itemIndex += 1) {
-      const item = updateData[itemIndex];
-      const update = await db.tpns_olx_offer.update({
-        data: item,
-        where: {
-          id: item.id,
-        },
-      });
-      result.update.data.push(update);
-    }
+    result.update.data = updateData;
+    db.$transaction(
+      updateData.map((item) =>
+        db.tpns_olx_offer.update({
+          data: item,
+          where: {
+            id: item.id,
+          },
+        })
+      )
+    );
   }
 
   const createData = Array.from(input.create.values());
