@@ -1,4 +1,6 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, tpns_olx_offer } from "@prisma/client";
+import { diff } from "json-diff-ts";
+import omit from "lodash/fp/omit";
 import type { NextApiRequest, NextApiResponse } from "next";
 import PrismaDb from "../../../lib/prisma/client";
 import { OlxResponseData, Value } from "../../../types/olx";
@@ -39,20 +41,20 @@ function mapOlxResponseDataToDatabaseInput(
 
   return {
     id: String(item.id),
-    created_time: item.created_time,
-    last_refresh_time: item.last_refresh_time,
+    created_time: new Date(item.created_time),
+    last_refresh_time: new Date(item.last_refresh_time),
     location_city_name: item.location.city.name,
     location_region_name: item.location.region.name,
     title: item.title,
     url: item.url,
-    valid_to_time: item.valid_to_time,
-    pushup_time: item.pushup_time,
+    valid_to_time: new Date(item.valid_to_time),
+    pushup_time: item.pushup_time && new Date(item.pushup_time),
     param_enginesize: params.enginesize,
     param_milage: params.milage,
     param_price: params.price,
     param_year: params.year,
-    param_country_origin: params.countryOrigin,
-    updated_at: new Date().toISOString(),
+    param_country_origin: params.countryOrigin ?? null,
+    updated_at: new Date(),
   };
 }
 
@@ -75,16 +77,22 @@ async function saveSearchData(data: OlxResponseData): Promise<SavedSearchData> {
   });
   const offersMap = offers.reduce(
     (map, offer) => map.set(offer.id, offer),
-    new Map()
+    new Map<string, tpns_olx_offer>()
   );
 
   const input = data.data.reduce(
     (currentInput, item) => {
-      if (offersMap.has(String(item.id))) {
-        currentInput.update.set(
-          item.id,
-          mapOlxResponseDataToDatabaseInput(item)
+      const id = String(item.id);
+      if (offersMap.has(id)) {
+        const newItem = mapOlxResponseDataToDatabaseInput(item);
+        const currentItem = offersMap.get(id);
+        if (!currentItem) return currentInput;
+        const changes = diff(
+          omit("updated_at", currentItem),
+          omit("updated_at", newItem)
         );
+        if (!changes.length) return currentInput;
+        currentInput.update.set(item.id, newItem);
       } else {
         currentInput.create.set(
           item.id,
