@@ -108,27 +108,23 @@ async function saveSearchData(data: OlxResponseData): Promise<SavedSearchData> {
   );
 
   const result: SavedSearchData = { create: {}, update: {} };
-
-  if (input.update.size) {
-    const updateData = Array.from(input.update.values());
-    result.update.data = updateData;
-    await db.$transaction(
-      updateData.map((item) =>
-        db.tpns_olx_offer.update({
-          data: item,
-          where: {
-            id: item.id,
-          },
-        })
-      )
-    );
-  }
-
+  const updateData = Array.from(input.update.values());
   const createData = Array.from(input.create.values());
-  await db.tpns_olx_offer.createMany({
-    data: createData,
-  });
+  result.update.data = updateData;
   result.create.data = createData;
+  await db.$transaction([
+    ...updateData.map((item) =>
+      db.tpns_olx_offer.update({
+        data: item,
+        where: {
+          id: item.id,
+        },
+      })
+    ),
+    db.tpns_olx_offer.createMany({
+      data: createData,
+    }),
+  ]);
 
   return result;
 }
@@ -140,7 +136,6 @@ export default async function search(
   const result: Array<{
     searched: OlxResponseData;
     saved: SavedSearchData | null;
-    message: SendEmailResponse | null;
   }> = [];
   let searched: OlxResponseData;
   let offset = 0;
@@ -164,19 +159,16 @@ export default async function search(
     searched = await response.json();
 
     let saved: SavedSearchData | null = null;
-    let message: SendEmailResponse | null = null;
     try {
       saved = await saveSearchData(searched);
       if (saved.create.data?.length) {
-        message = await sendEmail(
-          createOlxNewOffersEmailData(saved.create.data)
-        );
+        sendEmail(createOlxNewOffersEmailData(saved.create.data));
       }
     } catch (e) {
       console.log(e);
     }
 
-    result.push({ searched, saved, message });
+    result.push({ searched, saved });
     offset += PAGE_SIZE;
   } while (searched?.links?.next);
 
