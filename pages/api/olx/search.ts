@@ -2,6 +2,7 @@ import { Prisma, tpns_olx_offer } from "@prisma/client";
 import { diff } from "json-diff-ts";
 import omit from "lodash/fp/omit";
 import type { NextApiRequest, NextApiResponse } from "next";
+import { z } from "zod";
 import PrismaDb from "../../../lib/prisma/client";
 import { OlxResponseData, Value } from "../../../types/olx";
 import {
@@ -129,10 +130,43 @@ async function saveSearchData(data: OlxResponseData): Promise<SavedSearchData> {
   return result;
 }
 
+const QuerySchema = z.object({
+  secret: z.literal(process.env.SECRET, {
+    errorMap() {
+      return {
+        message: "Invalid secret",
+      };
+    },
+  }),
+});
+type Query = z.infer<typeof QuerySchema>;
+
 export default async function search(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
+  if (req.method !== "GET") {
+    res.status(405).json({ message: "Method not allowed" });
+    return;
+  }
+
+  try {
+    QuerySchema.parse(req.query);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json({
+        error: {
+          message: error.issues[0].message,
+        },
+      });
+      return;
+    }
+
+    res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+
   const result: Array<{
     searched: OlxResponseData;
     saved: SavedSearchData | null;
@@ -141,8 +175,9 @@ export default async function search(
   let offset = 0;
   do {
     const url = new URL(joinUrlWithRoute(olxUrl, "api/v1/offers"));
+    const { secret, ...queryWithoutSecret } = req.query;
     const searchParams: Record<string, string> = {
-      ...req.query,
+      ...queryWithoutSecret,
       offset: String(offset),
       limit: String(PAGE_SIZE),
     };
