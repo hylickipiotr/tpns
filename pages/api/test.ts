@@ -1,10 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import { sendEmail } from "../../utils/email";
 
-export default async function handleTest(
-  _: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handleTest() {
   setTimeout(() => {
     sendEmail({
       sender: {
@@ -21,5 +18,14 @@ export default async function handleTest(
     });
   }, 5000);
 
-  res.status(200).json({ message: "Test" });
+  return new Response(
+    JSON.stringify({
+      message: "Test",
+    }),
+    { headers: { "Content-Type": "application/json" } }
+  );
 }
+
+export const config = {
+  runtime: "edge",
+};
