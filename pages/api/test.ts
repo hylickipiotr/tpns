@@ -16,7 +16,7 @@ export default async function handleTest() {
       subject: "Test",
       htmlContent: "Test",
     });
-  }, 5000);
+  }, 2000);
 
   return new Response(
     JSON.stringify({
