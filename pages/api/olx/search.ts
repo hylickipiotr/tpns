@@ -1,15 +1,11 @@
 import { Prisma, tpns_olx_offer } from "@prisma/client";
-import { diff } from "json-diff-ts";
-import omit from "lodash/fp/omit";
-import type { NextApiRequest, NextApiResponse } from "next";
+import { dequal } from "dequal/lite";
+import type { NextApiRequest } from "next";
 import { z } from "zod";
 import PrismaDb from "../../../lib/prisma/client";
 import { OlxResponseData, Value } from "../../../types/olx";
-import {
-  createOlxNewOffersEmailData,
-  sendEmail,
-  SendEmailResponse,
-} from "../../../utils/email";
+import { createOlxNewOffersEmailData, sendEmail } from "../../../utils/email";
+import omit from "../../../utils/omit";
 import { joinUrlWithRoute } from "../../../utils/url";
 
 const olxUrl = "https://www.olx.pl";
@@ -88,11 +84,11 @@ async function saveSearchData(data: OlxResponseData): Promise<SavedSearchData> {
         const newItem = mapOlxResponseDataToDatabaseInput(item);
         const currentItem = offersMap.get(id);
         if (!currentItem) return currentInput;
-        const changes = diff(
-          omit("updated_at", currentItem),
-          omit("updated_at", newItem)
+        const isEqual = dequal(
+          omit(currentItem, "updated_at"),
+          omit(newItem, "updated_at")
         );
-        if (!changes.length) return currentInput;
+        if (!isEqual) return currentInput;
         currentInput.update.set(item.id, newItem);
       } else {
         currentInput.create.set(
@@ -139,26 +135,18 @@ const QuerySchema = z.object({
     },
   }),
 });
-type Query = z.infer<typeof QuerySchema>;
 
-export default async function search(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function search(req: NextApiRequest) {
   try {
     QuerySchema.parse(req.query);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      res.status(400).json({
-        error: {
-          message: error.issues[0].message,
-        },
+      return new Response(JSON.stringify({ error: error.issues[0].message }), {
+        status: 400,
       });
-      return;
     }
-
-    res.status(500).json({
-      message: "Internal server error",
+    return new Response(JSON.stringify({ error: "Internal server error" }), {
+      status: 500,
     });
   }
 
@@ -192,7 +180,7 @@ export default async function search(
     try {
       saved = await saveSearchData(searched);
       if (saved.create.data?.length) {
-        sendEmail(createOlxNewOffersEmailData(saved.create.data));
+        await sendEmail(createOlxNewOffersEmailData(saved.create.data));
       }
     } catch (e) {
       console.log(e);
@@ -202,5 +190,11 @@ export default async function search(
     offset += PAGE_SIZE;
   } while (searched?.links?.next);
 
-  res.status(200).json(result);
+  return new Response(JSON.stringify(result), {
+    status: 200,
+  });
 }
+
+export const config = {
+  runtime: "edge",
+};
